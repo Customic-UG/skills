@@ -1,58 +1,81 @@
 ---
 name: funnel-styleguide
-description: Apply a token-driven style guide when building or editing blocks in a themeable funnel or landing-page builder. Use when adding a new block type, styling an existing block, or touching colors, typography, spacing, or radius in a block-based page editor.
+description: Apply design taste when styling a funnel or landing page through osiro's MCP tools (set_funnel_style_guide, set_landing_page_style_guide, add_funnel_block, add_landing_page_block, add_funnel_composition). Use whenever building or restyling a funnel or landing page so the result looks intentional, not just technically valid.
 metadata:
   author: osiro
   version: "1.0.0"
 ---
 
-# Style guide
+# Style guide taste
 
-A themeable block builder keeps its style guide in code, not a doc: one style-guide config object
-plus a color-token table that every block reads instead of hardcoding visuals. Before styling a
-block, find that config object and that token resolver in the codebase — they're the source of
-truth — and read from them rather than reinventing a value locally.
+osiro's style-guide tools already explain their own mechanics — `get_funnel_style_guide` and
+`get_landing_page_style_guide` return the current values, the valid option lists, and what each
+color slot is for. What they don't tell you is what looks good. A palette or layout can be fully
+valid input and still look amateurish; this skill is the taste layer on top of a valid call.
 
-## Colors are tokens, never hex
+## Read before you write
 
-A block's config should store a color token (e.g. `PRIMARY`, `SECONDARY`, or a themed name like
-`level1`, `accent-bg`), resolved to a real color only at render time by a shared resolver function.
-Writing a raw hex or rgb value into a block's config is a style-guide violation — it can't follow
-the theme when the palette changes. If light/dark shades exist, they should derive from the base
-token (e.g. via CSS `color-mix`), not be separate hand-picked colors.
+Always call `get_funnel_style_guide` / `get_landing_page_style_guide` before the matching `set_`
+tool. You need the current palette, fonts, and options in front of you to make one coherent change
+— picking a new `level1` without seeing `level2` risks a clash you can't see from the patch alone.
 
-## One config object owns every visual knob
+## Color: contrast over count
 
-Radius, border thickness, element size, layout (boxed/full, width, padding), spacing, min-height,
-vertical alignment, and animation type belong on the single style-guide config object, not as an
-ad-hoc prop on one block. A new visual knob goes there so every block and every theme gets it —
-bolting a one-off style prop onto a single block instead is the failure mode to avoid.
+- `level1` is the CTA color — it must read clearly against `elementColors.background` and against
+  `layout.backgroundColor` / `cardBackgroundColor`. Check it isn't close in lightness to the surface
+  it sits on, or the button disappears.
+- `level2` carries headings and dark text — keep it genuinely dark/saturated relative to `level1`,
+  not a second accent. A palette where `level1` and `level2` are both mid-tone brights reads as
+  noisy, not branded.
+- `level3`/`level4` are minor accents (badges, dividers, secondary icons) — never the CTA. Reserve
+  them for the smallest, least frequent elements.
+- A funnel with four competing bright colors looks like a spreadsheet, not a brand. When the org
+  only gives you one or two real brand colors, derive `level3`/`level4` as muted or desaturated
+  variants of those rather than inventing new hues.
 
-## Typography is a small fixed set of slots
+## One mood, not a mix
 
-Themeable builders typically expose a small, fixed number of font slots (commonly one heading font
-and one body font) rather than letting each block pick its own font. Don't introduce a new font
-slot or a per-block font override; extend the shared font list instead.
+`radiusStyle`, `borderThickness`, and `elementSize` together set a mood — pick one and hold it:
 
-## Block file shape is consistent across the block catalog
+- soft: `rounded`/`curved` radius + thin borders + normal/large elements
+- sharp: `cornered` radius + thick borders + normal/small elements
 
-Each block type in the catalog follows the same file layout (e.g. a registry entry, a config
-schema, an editor setup panel, and a render component, each in its own file). Before adding a new
-block, open two or three existing ones and match their file layout exactly — a variant with logic
-inlined into the registry file, or a schema split across files, breaks the pattern every other
-block follows.
+Mixing across the two (e.g. `curved` radius with `thick` borders) reads as indecisive. If the org's
+existing guide already leans one way, match it instead of introducing the other.
 
-Some block types (commonly a generic container and an auth/verification step) are "core" — shipped
-by the shared editor package itself and merged into every theme's registry, rather than redefined
-per theme. Don't reimplement a core block inside a theme.
+## Fonts: contrast in role, not in personality
 
-## Reuse shared style helpers
+`fontHeading` and `fontBody` should differ enough to separate headings from body text (e.g. a
+geometric sans heading over a humanist sans body) without fighting — two heavyweight display
+fonts, or fonts with wildly mismatched x-heights, both read as unpolished. When unsure, pick a
+pairing from `get_funnel_style_guide`'s `options.popularFonts` rather than guessing an arbitrary
+Bunny Fonts family.
 
-Use the shared class-merging helper (a `clsx`/`tailwind-merge` combo, commonly named `cn()`) to
-compose classes instead of string concatenation, and reuse shared primitive components (buttons,
-inputs) instead of rebuilding their styling per block.
+## Layout: match the container to the content
 
-Done when: every color in the block's config is a token (not a raw hex/rgb literal), every visual
-knob reads from the shared style-guide config (nothing new bolted on ad-hoc), the block's file
-layout matches its neighbors in the catalog, and shared helpers/components are reused rather than
-re-implemented.
+- `boxed` (a centered card) suits short, form-like funnels — quizzes, lead forms, single-question
+  steps.
+- `full` suits content-heavy steps — long-form landing pages, image-led hero steps.
+
+Check the funnel's length and content density before picking one; don't default to the same layout
+for every funnel.
+
+## Structure: reach for a composition before hand-building
+
+`list_funnel_compositions` and the block-type tools' `whenToUse` notes exist because similar-looking
+blocks solve different problems. Before assembling a multi-select, picture-choice, or other common
+pattern block-by-block, check `list_funnel_compositions` for a prebuilt template — a composition
+already ships spaced, labeled, and wired with sensible defaults, which a hand-built equivalent
+usually isn't.
+
+## Icons: sparing and consistent
+
+When a block supports an icon, `search_icons` for one that matches the existing icon set's style
+(line vs. filled, same weight) rather than mixing styles across a funnel. An icon on every block is
+noise — reserve icons for elements that need a visual anchor (choice options, benefit lists), not
+filler on every heading.
+
+Done when: the palette reads with clear CTA contrast and no more than one accent role per color
+slot, radius/border/element-size agree on one mood, the fonts are a deliberate pairing, the layout
+type matches content length, structure came from a composition where one exists, and any icons
+share one visual style.
